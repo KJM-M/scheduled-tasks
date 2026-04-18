@@ -21,58 +21,54 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Check secrets are configured
+      - name: Check required secrets
         env:
           MY_EMAIL: ${{ secrets.MY_EMAIL }}
           MY_PASSWORD: ${{ secrets.MY_PASSWORD }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_RECEIVER_NRO: ${{ secrets.TWILIO_RECEIVER_NRO }}
+          TWILIO_FROM_NRO: ${{ secrets.TWILIO_FROM_NRO }}
         run: |
-          if [ -z "$MY_EMAIL" ]; then
-            echo "MY_EMAIL secret is not set!"
-            echo "Go to Settings > Secrets > Actions and add it."
-            exit 1
-          else
-            echo "MY_EMAIL is configured"
-          fi
+          echo "Checking secrets..."
 
-          if [ -z "$MY_PASSWORD" ]; then
-            echo "MY_PASSWORD secret is not set!"
-            echo "Go to Settings > Secrets > Actions and add it."
-            exit 1
-          else
-            echo "MY_PASSWORD is configured"
-          fi
+          if [ -z "$MY_EMAIL" ]; then echo "MY_EMAIL missing"; exit 1; else echo "MY_EMAIL OK"; fi
+          if [ -z "$MY_PASSWORD" ]; then echo "MY_PASSWORD missing"; exit 1; else echo "MY_PASSWORD OK"; fi
+          if [ -z "$TWILIO_ACCOUNT_SID" ]; then echo "TWILIO_ACCOUNT_SID missing"; exit 1; else echo "TWILIO_ACCOUNT_SID OK"; fi
+          if [ -z "$TWILIO_AUTH_TOKEN" ]; then echo "TWILIO_AUTH_TOKEN missing"; exit 1; else echo "TWILIO_AUTH_TOKEN OK"; fi
+          if [ -z "$TWILIO_RECEIVER_NRO" ]; then echo "TWILIO_RECEIVER_NRO missing"; exit 1; else echo "TWILIO_RECEIVER_NRO OK"; fi
+          if [ -z "$TWILIO_FROM_NRO" ]; then echo "TWILIO_FROM_NRO missing"; exit 1; else echo "TWILIO_FROM_NRO OK"; fi
 
-          echo ""
-          echo "All secrets are configured!"
+          echo "All secrets configured!"
 
       - name: Check required files exist
         run: |
-          echo "Checking for required files..."
+          echo "Checking files..."
 
-          if [ -f "main.py" ]; then
-            echo "main.py found"
-          else
-            echo "main.py not found!"
-            exit 1
-          fi
-
-          if [ -f "requirements.txt" ]; then
-            echo "requirements.txt found"
-          else
-            echo "requirements.txt not found!"
-            exit 1
-          fi
-
-          echo ""
-          echo "All required files found!"
+          test -f main.py && echo "main.py OK" || (echo "main.py missing" && exit 1)
+          test -f requirements.txt && echo "requirements.txt OK" || (echo "requirements.txt missing" && exit 1)
 
       - name: Test Python syntax
-        run: python -m py_compile main.py && echo "Python syntax OK"
+        run: python -m py_compile main.py
+
+      - name: Test external API access (ISS + Sunrise)
+        run: |
+          echo "Testing APIs..."
+
+          python << 'EOF'
+          import requests
+          
+          print('Testing ISS API...')
+          iss = requests.get('http://api.open-notify.org/iss-now.json')
+          print('ISS API status:', iss.status_code)
+          
+          print('Testing Sunrise API...')
+          sun = requests.get('https://api.sunrise-sunset.org/json?lat=0&lng=0&formatted=0')
+          print('Sunrise API status:', sun.status_code)
+          EOF
 
       - name: Success
         run: |
-          echo ""
-          echo "========================================"
-          echo "  All checks passed!"
-          echo "  Your setup is ready to go."
-          echo "========================================"
+          echo '========================================'
+          echo ' ALL TESTS PASSED'
+          echo '========================================'
