@@ -5,19 +5,16 @@ import smtplib
 import time
 from twilio.rest import Client
 
-# https://www.latlong.net/
-# https://sunrise-sunset.org/api
-
 MY_LAT = 61.497753
 MY_LONG = 23.760954
 
 MY_EMAIL = os.environ.get("MY_EMAIL")
 PASSWORD = os.environ.get("PASSWORD")
 
-twilio_account_sid = os.environ.get("twilio_account_sid")
-twilio_auth_token = os.environ.get("twilio_auth_token")
-twilio_from_number = "+12183535285"
-twilio_receiver_number = os.environ.get("twilio_rec_nro")
+twilio_account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+twilio_auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+twilio_from_number = os.environ.get("TWILIO_FROM_NRO")
+twilio_receiver_number = os.environ.get("TWILIO_RECEIVER_NRO")
 
 client = Client(twilio_account_sid, twilio_auth_token)
 
