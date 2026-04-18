@@ -18,48 +18,45 @@ twilio_receiver_number = os.environ.get("TWILIO_RECEIVER_NRO")
 
 client = Client(twilio_account_sid, twilio_auth_token)
 
-while True:
-    response = requests.get(url="http://api.open-notify.org/iss-now.json")
-    response.raise_for_status()
-    data = response.json()
+response = requests.get(url="http://api.open-notify.org/iss-now.json")
+response.raise_for_status()
+data = response.json()
 
-    iss_latitude = float(data["iss_position"]["latitude"])
-    iss_longitude = float(data["iss_position"]["longitude"])
+iss_latitude = float(data["iss_position"]["latitude"])
+iss_longitude = float(data["iss_position"]["longitude"])
 
-    parameters = {
-        "lat": MY_LAT,
-        "lng": MY_LONG,
-        "formatted": 0,
-        "tzid": "Europe/Helsinki",
-    }
+parameters = {
+    "lat": MY_LAT,
+    "lng": MY_LONG,
+    "formatted": 0,
+    "tzid": "Europe/Helsinki",
+}
 
-    response = requests.get("https://api.sunrise-sunset.org/json", params=parameters)
-    response.raise_for_status()
-    data = response.json()
-    sunrise = int(data["results"]["sunrise"].split("T")[1].split(":")[0])
-    sunset = int(data["results"]["sunset"].split("T")[1].split(":")[0])
+response = requests.get("https://api.sunrise-sunset.org/json", params=parameters)
+response.raise_for_status()
+data = response.json()
+sunrise = int(data["results"]["sunrise"].split("T")[1].split(":")[0])
+sunset = int(data["results"]["sunset"].split("T")[1].split(":")[0])
 
-    hour_now = datetime.now().hour
+hour_now = datetime.now().hour
 
-    latitude_ok = iss_latitude >= MY_LAT - 5 and iss_latitude <= MY_LAT + 5
-    longitude_ok = iss_longitude >= MY_LONG - 5 and iss_longitude <= MY_LONG + 5
-    is_dark = hour_now < sunrise or hour_now > sunset
+latitude_ok = iss_latitude >= MY_LAT - 5 and iss_latitude <= MY_LAT + 5
+longitude_ok = iss_longitude >= MY_LONG - 5 and iss_longitude <= MY_LONG + 5
+is_dark = hour_now < sunrise or hour_now > sunset
 
 
-    if latitude_ok and longitude_ok and is_dark:
-        with smtplib.SMTP("smtp.gmail.com", port=587) as connection:
-            connection.starttls()
-            connection.login(user=MY_EMAIL, password=PASSWORD)
-            connection.sendmail(from_addr=MY_EMAIL,
-                                to_addrs=MY_EMAIL,
-                                msg="Subject: Look up 👆\n\nLook up, ISS is currently above your location.")
+if latitude_ok and longitude_ok and is_dark:
+    with smtplib.SMTP("smtp.gmail.com", port=587) as connection:
+        connection.starttls()
+        connection.login(user=MY_EMAIL, password=PASSWORD)
+        connection.sendmail(from_addr=MY_EMAIL,
+                            to_addrs=MY_EMAIL,
+                            msg="Subject: Look up 👆\n\nLook up, ISS is currently above your location.")
 
-        message = client.messages.create(
-            body="ISS Above you!",
-            from_=twilio_from_number,
-            to=twilio_receiver_number,
-        )
+    message = client.messages.create(
+        body="ISS Above you!",
+        from_=twilio_from_number,
+        to=twilio_receiver_number,
+    )
 
-        print(message.status)
-    
-    time.sleep(60)
+    print(message.status)
