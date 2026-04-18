@@ -1,38 +1,68 @@
-# To run and test the code you need to update 4 places:
-# 1. Change MY_EMAIL/MY_PASSWORD to your own details.
-# 2. Go to your email provider and make it allow less secure apps.
-# 3. Update the SMTP ADDRESS to match your email provider.
-# 4. Update birthdays.csv to contain today's month and day.
-# See the solution video in the 100 Days of Python Course for explainations.
-
-
-from datetime import datetime
-import pandas
-import random
-import smtplib
 import os
+import requests
+from datetime import datetime
+import smtplib
+import time
+from twilio.rest import Client
 
-# import os and use it to get the Github repository secrets
+# https://www.latlong.net/
+# https://sunrise-sunset.org/api
+
+MY_LAT = 61.497753
+MY_LONG = 23.760954
+
 MY_EMAIL = os.environ.get("MY_EMAIL")
-MY_PASSWORD = os.environ.get("MY_PASSWORD")
+PASSWORD = os.environ.get("PASSWORD")
 
-today = datetime.now()
-today_tuple = (today.month, today.day)
+twilio_account_sid = os.environ.get("twilio_account_sid")
+twilio_auth_token = os.environ.get("twilio_auth_token")
+twilio_from_number = "+12183535285"
+twilio_receiver_number = os.environ.get("twilio_rec_nro")
 
-data = pandas.read_csv("birthdays.csv")
-birthdays_dict = {(data_row["month"], data_row["day"])                  : data_row for (index, data_row) in data.iterrows()}
-if today_tuple in birthdays_dict:
-    birthday_person = birthdays_dict[today_tuple]
-    file_path = f"letter_templates/letter_{random.randint(1, 3)}.txt"
-    with open(file_path) as letter_file:
-        contents = letter_file.read()
-        contents = contents.replace("[NAME]", birthday_person["name"])
+client = Client(twilio_account_sid, twilio_auth_token)
 
-    with smtplib.SMTP("YOUR EMAIL PROVIDER SMTP SERVER ADDRESS") as connection:
-        connection.starttls()
-        connection.login(MY_EMAIL, MY_PASSWORD)
-        connection.sendmail(
-            from_addr=MY_EMAIL,
-            to_addrs=birthday_person["email"],
-            msg=f"Subject:Happy Birthday!\n\n{contents}"
+while True:
+    response = requests.get(url="http://api.open-notify.org/iss-now.json")
+    response.raise_for_status()
+    data = response.json()
+
+    iss_latitude = float(data["iss_position"]["latitude"])
+    iss_longitude = float(data["iss_position"]["longitude"])
+
+    parameters = {
+        "lat": MY_LAT,
+        "lng": MY_LONG,
+        "formatted": 0,
+        "tzid": "Europe/Helsinki",
+    }
+
+    response = requests.get("https://api.sunrise-sunset.org/json", params=parameters)
+    response.raise_for_status()
+    data = response.json()
+    sunrise = int(data["results"]["sunrise"].split("T")[1].split(":")[0])
+    sunset = int(data["results"]["sunset"].split("T")[1].split(":")[0])
+
+    hour_now = datetime.now().hour
+
+    latitude_ok = iss_latitude >= MY_LAT - 5 and iss_latitude <= MY_LAT + 5
+    longitude_ok = iss_longitude >= MY_LONG - 5 and iss_longitude <= MY_LONG + 5
+    is_dark = hour_now < sunrise or hour_now > sunset
+
+
+    if latitude_ok and longitude_ok and is_dark:
+        with smtplib.SMTP("smtp.gmail.com", port=587) as connection:
+            connection.starttls()
+            connection.login(user=MY_EMAIL, password=PASSWORD)
+            connection.sendmail(from_addr=MY_EMAIL,
+                                to_addrs=MY_EMAIL,
+                                msg="Subject: Look up 👆\n\nLook up, ISS is currently above your location.")
+
+        message = client.messages.create(
+            body="ISS Above you!",
+            from_=twilio_from_number,
+            to=twilio_receiver_number,
         )
+
+        print(message.status)
+    
+    time.sleep(60)
